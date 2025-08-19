@@ -11,6 +11,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import socket
 import sys
+from contextlib import suppress
 
 import importlib
 import pkgutil
@@ -269,25 +270,53 @@ async def maintenance():
     revoke_expired_oauths()
 
 
-async def shutdown():
+async def shutdown(loop=None):
     try:
         bumperlog.info("Shutting down")
+        loop = loop or asyncio.get_event_loop()
 
-        await conf_server.stop_server()
-        await conf_server_2.stop_server()
+        with suppress(asyncio.CancelledError):
+            await asyncio.wrap_future(
+                asyncio.run_coroutine_threadsafe(conf_server.stop_server(), loop)
+            )
+        with suppress(asyncio.CancelledError):
+            await asyncio.wrap_future(
+                asyncio.run_coroutine_threadsafe(conf_server_2.stop_server(), loop)
+            )
         if mqtt_server and mqtt_server.broker:
             if mqtt_server.broker.transitions.state == "started":
-                await mqtt_server.broker.shutdown()
+                with suppress(asyncio.CancelledError):
+                    await asyncio.wrap_future(
+                        asyncio.run_coroutine_threadsafe(
+                            mqtt_server.broker.shutdown(), loop
+                        )
+                    )
             elif mqtt_server.broker.transitions.state == "starting":
                 while mqtt_server.broker.transitions.state == "starting":
                     await asyncio.sleep(0.1)
                 if mqtt_server.broker.transitions.state == "started":
-                    await mqtt_server.broker.shutdown()
-                    await mqtt_helperbot.Client.disconnect()
+                    with suppress(asyncio.CancelledError):
+                        await asyncio.wrap_future(
+                            asyncio.run_coroutine_threadsafe(
+                                mqtt_server.broker.shutdown(), loop
+                            )
+                        )
+            if mqtt_helperbot and mqtt_helperbot.Client:
+                with suppress(asyncio.CancelledError):
+                    await asyncio.wrap_future(
+                        asyncio.run_coroutine_threadsafe(
+                            mqtt_helperbot.Client.disconnect(), loop
+                        )
+                    )
         if xmpp_server.server:
             if xmpp_server.server._serving:
                 xmpp_server.server.close()
-            await xmpp_server.server.wait_closed()
+            with suppress(asyncio.CancelledError):
+                await asyncio.wrap_future(
+                    asyncio.run_coroutine_threadsafe(
+                        xmpp_server.server.wait_closed(), loop
+                    )
+                )
         global shutting_down
         shutting_down = True
 
@@ -398,7 +427,17 @@ def main(argv=None):
         if args.announce:
             bumper_announce_ip = args.announce
 
-        asyncio.run(start())
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(start())
+        except KeyboardInterrupt:
+            bumperlog.info("Keyboard Interrupt!")
+        except Exception as e:
+            bumperlog.exception(e)
+        finally:
+            loop.run_until_complete(shutdown(loop))
+            loop.close()
 
     except KeyboardInterrupt:
         bumperlog.info("Keyboard Interrupt!")
@@ -407,7 +446,4 @@ def main(argv=None):
     except Exception as e:
         bumperlog.exception(e)
         pass
-
-    finally:
-        asyncio.run(shutdown())
 
