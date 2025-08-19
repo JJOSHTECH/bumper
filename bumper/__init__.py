@@ -47,12 +47,11 @@ server_cert = os.environ.get("BUMPER_CERT") or os.path.join(certs_dir, "bumper.c
 server_key = os.environ.get("BUMPER_KEY") or os.path.join(certs_dir, "bumper.key")
 
 # Listeners
-bumper_listen = os.environ.get("BUMPER_LISTEN") or socket.gethostbyname(
-    socket.gethostname()
-)
+host_ip = socket.gethostbyname(socket.gethostname())
+bumper_listen = os.environ.get("BUMPER_LISTEN") or "0.0.0.0"
 
 
-bumper_announce_ip = os.environ.get("BUMPER_ANNOUNCE_IP") or bumper_listen
+bumper_announce_ip = os.environ.get("BUMPER_ANNOUNCE_IP") or host_ip
 
 # Other
 bumper_debug = strtobool(os.environ.get("BUMPER_DEBUG")) or False
@@ -229,7 +228,8 @@ async def start():
     global mqtt_server
     mqtt_server = MQTTServer((bumper_listen, mqtt_listen_port))
     global mqtt_helperbot
-    mqtt_helperbot = MQTTHelperBot((bumper_listen, mqtt_listen_port))
+    helperbot_host = bumper_listen if bumper_listen != "0.0.0.0" else "127.0.0.1"
+    mqtt_helperbot = MQTTHelperBot((helperbot_host, mqtt_listen_port))
     global conf_server
     conf_server = ConfServer((bumper_listen, conf1_listen_port), usessl=True)
     global conf_server_2
