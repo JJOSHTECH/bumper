@@ -197,7 +197,7 @@ class MQTTServer:
                     "default": {"type": "tcp"},
                     "tls1": {
                         "bind": "{}:{}".format(address[0], address[1]),
-                        "ssl": "on",
+                        "ssl": True,
                         "certfile": bumper.server_cert,
                         "keyfile": bumper.server_key,
                     },
