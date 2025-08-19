@@ -7,6 +7,7 @@ import amqtt
 from amqtt.broker import Broker
 from amqtt.client import MQTTClient
 from amqtt.mqtt.constants import QOS_0, QOS_1, QOS_2
+from amqtt.errors import BrokerError
 import pkg_resources
 import time
 import bumper
@@ -155,7 +156,7 @@ class MQTTServer:
         try:
             await self.broker.start()
 
-        except amqtt.broker.BrokerException as e:
+        except BrokerError as e:
             mqttserverlog.exception(e)
             #asyncio.create_task(bumper.shutdown())
             pass
