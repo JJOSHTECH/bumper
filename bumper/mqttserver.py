@@ -57,7 +57,7 @@ class MQTTHelperBot:
                 [
                     ("iot/p2p/+/+/+/+/helperbot/bumper/helperbot/+/+/+", QOS_0),
                     ("iot/p2p/+", QOS_0),
-                    ("iot/atr/+", QOS_0),
+                    ("iot/atr/#", QOS_0),
                 ]
             )
 
@@ -221,12 +221,6 @@ class MQTTServer:
                 "plugins": {
                     "amqtt.plugins.sys.broker.BrokerSysPlugin": {
                         "sys_interval": 0
-                    },
-                    "amqtt.plugins.authentication.AnonymousAuthPlugin": {
-                        "allow_anonymous": allow_anon
-                    },
-                    "amqtt.plugins.authentication.FileAuthPlugin": {
-                        "password_file": passwd_file
                     },
                     "amqtt.plugins.topic_checking.TopicTabooPlugin": {},
                     "bumper.mqttserver.BumperMQTTServer_Plugin": {
@@ -394,13 +388,14 @@ class BumperMQTTServer_Plugin(BaseAuthPlugin):
                         message.topic, str(message.data.decode("utf-8"))
                     )
                 )
-                bumper.mqtt_helperbot.command_responses.append(
-                    {
-                        "time": time.time(),
-                        "topic": message.topic,
-                        "payload": str(message.data.decode("utf-8")),
-                    }
-                )
+                if bumper.mqtt_helperbot:
+                    bumper.mqtt_helperbot.command_responses.append(
+                        {
+                            "time": time.time(),
+                            "topic": message.topic,
+                            "payload": str(message.data.decode("utf-8")),
+                        }
+                    )
             elif str(message.topic).split("/")[3] == "helperbot":
                 # Helperbot sending command
                 helperbotlog.debug(
@@ -431,18 +426,19 @@ class BumperMQTTServer_Plugin(BaseAuthPlugin):
                 )
 
             # Cleanup "expired messages" > 60 seconds from time
-            for msg in bumper.mqtt_helperbot.command_responses:
-                expire_time = (
-                    datetime.fromtimestamp(msg["time"])
-                    + timedelta(seconds=bumper.mqtt_helperbot.expire_msg_seconds)
-                ).timestamp()
-                if time.time() > expire_time:
-                    helperbotlog.debug(
-                        "Pruning Message Due To Expiration - Message Topic: {}".format(
-                            msg["topic"]
+            if bumper.mqtt_helperbot:
+                for msg in list(bumper.mqtt_helperbot.command_responses):
+                    expire_time = (
+                        datetime.fromtimestamp(msg["time"])
+                        + timedelta(seconds=bumper.mqtt_helperbot.expire_msg_seconds)
+                    ).timestamp()
+                    if time.time() > expire_time:
+                        helperbotlog.debug(
+                            "Pruning Message Due To Expiration - Message Topic: {}".format(
+                                msg["topic"]
+                            )
                         )
-                    )
-                    bumper.mqtt_helperbot.command_responses.remove(msg)
+                        bumper.mqtt_helperbot.command_responses.remove(msg)
 
 
     async def on_broker_client_disconnected(self, client_id, client_session=None):
