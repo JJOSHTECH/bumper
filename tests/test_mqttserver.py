@@ -1,4 +1,4 @@
-import mock
+from unittest import mock
 import bumper
 import asyncio
 import pytest
@@ -7,7 +7,7 @@ import json
 import tinydb
 import pytest_asyncio
 import xml.etree.ElementTree as ET
-import hbmqtt
+import amqtt
 import logging
 from testfixtures import LogCapture
 import time
@@ -29,7 +29,7 @@ async def test_helperbot_message():
         msg_payload = "<ctl ts='1547822804960' td='DustCaseST' st='0'/>"
         msg_topic_name = "iot/atr/DustCaseST/bot_serial/ls1ok3/wC3g/x"
         await mqtt_helperbot.Client.publish(
-            msg_topic_name, msg_payload.encode(), hbmqtt.client.QOS_0
+            msg_topic_name, msg_payload.encode(), amqtt.client.QOS_0
         )
 
         await asyncio.wait_for(mqtt_helperbot.Client.deliver_message(), timeout=0.1)
@@ -55,7 +55,7 @@ async def test_helperbot_message():
             "iot/p2p/GetWKVer/helperbot/bumper/helperbot/bot_serial/ls1ok3/wC3g/q/iCmuqp/j"
         )
         await mqtt_helperbot.Client.publish(
-            msg_topic_name, msg_payload.encode(), hbmqtt.client.QOS_0
+            msg_topic_name, msg_payload.encode(), amqtt.client.QOS_0
         )
         
         await asyncio.wait_for(mqtt_helperbot.Client.deliver_message(), timeout=0.1)
@@ -81,7 +81,7 @@ async def test_helperbot_message():
             "iot/p2p/GetWKVer/bot_serial/ls1ok3/wC3g/helperbot/bumper/helperbot/p/iCmuqp/j"
         )
         await mqtt_helperbot.Client.publish(
-            msg_topic_name, msg_payload.encode(), hbmqtt.client.QOS_0
+            msg_topic_name, msg_payload.encode(), amqtt.client.QOS_0
         )
 
         await asyncio.wait_for(mqtt_helperbot.Client.deliver_message(), timeout=0.1)
@@ -107,7 +107,7 @@ async def test_helperbot_message():
             "iot/p2p/GetWKVer/bot_serial/ls1ok3/wC3g/TESTBAD/bumper/helperbot/p/iCmuqp/j"
         )
         await mqtt_helperbot.Client.publish(
-            msg_topic_name, msg_payload.encode(), hbmqtt.client.QOS_0
+            msg_topic_name, msg_payload.encode(), amqtt.client.QOS_0
         )
 
         await asyncio.wait_for(mqtt_helperbot.Client.deliver_message(), timeout=0.1)
@@ -132,7 +132,7 @@ async def test_helperbot_message():
         msg_payload = "<ctl ts='1560904925396' td='errors' old='' new='110'/>"
         msg_topic_name = "iot/atr/errors/bot_serial/ls1ok3/wC3g/x"
         await mqtt_helperbot.Client.publish(
-            msg_topic_name, msg_payload.encode(), hbmqtt.client.QOS_0
+            msg_topic_name, msg_payload.encode(), amqtt.client.QOS_0
         )
             
         await asyncio.wait_for(mqtt_helperbot.Client.deliver_message(), timeout=0.1)
@@ -189,7 +189,7 @@ async def test_helperbot_expire_message():
         msg_payload = "<ctl ts='1547822804960' td='DustCaseST' st='0'/>"
         msg_topic_name = "iot/atr/DustCaseST/bot_serial/ls1ok3/wC3g/x"
         await mqtt_helperbot.Client.publish(
-            msg_topic_name, msg_payload.encode(), hbmqtt.client.QOS_0
+            msg_topic_name, msg_payload.encode(), amqtt.client.QOS_0
         )  # Send another message to force get_msg
 
 
@@ -266,7 +266,7 @@ async def test_helperbot_sendcommand():
         "iot/p2p/GetWKVer/bot_serial/ls1ok3/wC3g/helperbot/bumper/helperbot/p/testgood/j"
     )
     await mqtt_helperbot.Client.publish(
-        msg_topic_name, msg_payload.encode(), hbmqtt.client.QOS_0
+        msg_topic_name, msg_payload.encode(), amqtt.client.QOS_0
     )
 
     commandresult = await mqtt_helperbot.send_command(cmdjson, "testgood")
@@ -305,7 +305,7 @@ async def test_helperbot_sendcommand():
         "iot/p2p/GetLifeSpan/bot_serial/ls1ok3/wC3g/helperbot/bumper/helperbot/p/testx/q"
     )
     await mqtt_helperbot.Client.publish(
-        msg_topic_name, msg_payload.encode(), hbmqtt.client.QOS_0
+        msg_topic_name, msg_payload.encode(), amqtt.client.QOS_0
     )
 
     commandresult = await mqtt_helperbot.send_command(cmdjson, "testx")
@@ -350,7 +350,7 @@ async def test_helperbot_sendcommand():
         "iot/p2p/getStats/bot_serial/ls1ok3/wC3g/helperbot/bumper/helperbot/p/testj/j"
     )
     await mqtt_helperbot.Client.publish(
-        msg_topic_name, msg_payload.encode(), hbmqtt.client.QOS_0
+        msg_topic_name, msg_payload.encode(), amqtt.client.QOS_0
     )
 
     commandresult = await mqtt_helperbot.send_command(cmdjson, "testj")
@@ -393,7 +393,7 @@ async def test_mqttserver():
     test_client = bumper.MQTTHelperBot(mqtt_address)
     test_client.client_id = "user_123@ecouser.net/resource_123"
     # await test_client.start_helper_bot()
-    test_client.Client = hbmqtt.client.MQTTClient(
+    test_client.Client = amqtt.client.MQTTClient(
         client_id=test_client.client_id, config={"check_hostname": False}
     )
 
@@ -422,7 +422,7 @@ async def test_mqttserver():
     test_client = bumper.MQTTHelperBot(mqtt_address)
     test_client.client_id = "test-file-auth"
     # await test_client.start_helper_bot()
-    test_client.Client = hbmqtt.client.MQTTClient(
+    test_client.Client = amqtt.client.MQTTClient(
         client_id=test_client.client_id, config={"check_hostname": False, "auto_reconnect": False, "reconnect_retries": 1}
     )
 
@@ -476,6 +476,6 @@ async def test_nofileauth_mqttserver():
         await mqtt_server.broker.shutdown()        
 
     l.check_present(
-        ("hbmqtt.broker.plugins.bumper", "WARNING", 'Password file tests/passwd-notfound not found'),
+        ("amqtt.broker.plugins.bumper", "WARNING", 'Password file tests/passwd-notfound not found'),
         order_matters=False
     )

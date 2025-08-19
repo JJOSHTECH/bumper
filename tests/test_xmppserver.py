@@ -1,4 +1,4 @@
-import mock
+from unittest import mock
 import bumper
 import asyncio
 import pytest
@@ -257,7 +257,7 @@ async def test_xmpp_server_client_tls():
     new_transport = await loop.start_tls(
         transport, protocol, ssl_context, server_side=False
     )
-    protocol._stream_reader = asyncio.StreamReader(loop=loop)
+    protocol._stream_reader = asyncio.StreamReader()
     protocol._client_connected_cb = do_stuff_after_start_tls
     protocol.connection_made(new_transport)
 
