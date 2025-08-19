@@ -2,6 +2,8 @@
 
 # Bumper 
 
+**Fork notice:** This repository is a fork of the [original Bumper project](https://github.com/bmartin5692/bumper) and is maintained via ChatGPT.
+
 Bumper is a standalone and self-hosted implementation of the central server used by Ecovacs vacuum robots.  Bumper allows you to have full control of your Ecovacs robots, without the robots or app talking to the Ecovacs servers and transmitting data outside of your home.
 
 ![Bumper Diagram](./docs/images/BumperDiagram.png "Bumper Diagram")
@@ -50,6 +52,26 @@ As work to reverse the protocols and provide a self-hosted central server is sti
 | Deebot Ozmo 601 | XMPP          | master                | Ecovacs              |
 | Deebot Ozmo 930 | XMPP          | master                | Ecovacs              |
 | Deebot M81 Pro  | XMPP          | v0.1.0                | Ecovacs              |
+
+## Installation
+
+1. Clone the repository and enter the directory:
+   ```bash
+   git clone https://github.com/your-username/bumper.git
+   cd bumper
+   ```
+2. Create a virtual environment and install dependencies:
+   ```bash
+   python3 -m venv .venv
+   source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+3. Adjust your DNS so that Ecovacs cloud domains point to the IP address of your Bumper server. This can be done using your home router or by editing `/etc/hosts` on a local DNS server.
+4. Start Bumper:
+   ```bash
+   python -m bumper
+   ```
+5. Set up your vacuum on the same network. Use the standard Ecovacs mobile app to add the robot; it will register with your local Bumper instance instead of the Ecovacs cloud.
 
 ## Documentation and Getting Started
 
