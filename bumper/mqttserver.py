@@ -8,13 +8,14 @@ from amqtt.broker import Broker
 from amqtt.client import MQTTClient
 from amqtt.mqtt.constants import QOS_0, QOS_1, QOS_2
 from amqtt.errors import BrokerError
-import pkg_resources
 import time
 import bumper
 import json
 from datetime import datetime, timedelta
 import bumper
 from passlib.apps import custom_app_context as pwd_context
+from dataclasses import dataclass
+from amqtt.plugins.base import BaseAuthPlugin
 
 helperbotlog = logging.getLogger("helperbot")
 boterrorlog = logging.getLogger("boterror")
@@ -184,14 +185,6 @@ class MQTTServer:
                 elif key == "allow_anonymous":
                     allow_anon = kwargs["allow_anonymous"] # Set to True to allow anonymous authentication
 
-            # The below adds a plugin to the amqtt.broker.plugins without having to futz with setup.py
-            distribution = pkg_resources.Distribution("amqtt.broker.plugins")
-            bumper_plugin = pkg_resources.EntryPoint.parse(
-                "bumper = bumper.mqttserver:BumperMQTTServer_Plugin", dist=distribution
-            )
-            distribution._ep_map = {"amqtt.broker.plugins": {"bumper": bumper_plugin}}
-            pkg_resources.working_set.add(distribution)
-
             # Initialize bot server
             self.default_config = {
                 "listeners": {
@@ -203,41 +196,55 @@ class MQTTServer:
                         "keyfile": bumper.server_key,
                     },
                 },
-                "sys_interval": 0,
-                "auth": {
-                    "allow-anonymous": allow_anon, 
-                    "password-file": passwd_file,
-                    "plugins": ["bumper"],  # Bumper plugin provides auth and handling of bots/clients connecting
+                "plugins": {
+                    "amqtt.plugins.sys.broker.BrokerSysPlugin": {
+                        "sys_interval": 0
+                    },
+                    "amqtt.plugins.authentication.AnonymousAuthPlugin": {
+                        "allow_anonymous": allow_anon
+                    },
+                    "amqtt.plugins.authentication.FileAuthPlugin": {
+                        "password_file": passwd_file
+                    },
+                    "amqtt.plugins.topic_checking.TopicTabooPlugin": {},
+                    "bumper.mqttserver.BumperMQTTServer_Plugin": {
+                        "allow_anonymous": allow_anon,
+                        "password_file": passwd_file,
+                    },
                 },
-                "topic-check": {"enabled": False},
             }
 
-            self.broker = amqtt.broker.Broker(config=self.default_config)
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+
+            self.broker = amqtt.broker.Broker(config=self.default_config, loop=loop)
 
         except Exception as e:
             mqttserverlog.exception("{}".format(e))
 
 
-class BumperMQTTServer_Plugin:
+class BumperMQTTServer_Plugin(BaseAuthPlugin):
+    @dataclass
+    class Config:
+        allow_anonymous: bool = True
+        password_file: str | None = None
+
     def __init__(self, context):
-        self.context = context
+        super().__init__(context)
         try:
-            self.auth_config = self.context.config["auth"]
             self._users = dict()
             self._read_password_file()
 
-        except KeyError:
-            self.context.logger.warning(
-                "'bumper' section not found in context configuration"
-            )
         except Exception as e:
             mqttserverlog.exception("{}".format(e))
 
-    async def authenticate(self, *args, **kwargs):
+    async def authenticate(self, *, session):
         authenticated = False
-        
+
         try:
-            session = kwargs.get("session", None)
             username = session.username
             password = session.password
             client_id = session.client_id
@@ -296,39 +303,49 @@ class BumperMQTTServer_Plugin:
 
         except Exception as e:
             mqttserverlog.exception(
-                "Session: {} - {}".format((kwargs.get("session", None)), e)
+                "Session: {} - {}".format(session, e)
             )
             authenticated = False
 
         # Check for allow anonymous
-        allow_anonymous = self.auth_config.get(
-            "allow-anonymous", True
-        )  
-        if allow_anonymous and not authenticated: # If anonymous auth is allowed and it isn't already authenticated
+        allow_anonymous = self.config.allow_anonymous
+        if allow_anonymous and not authenticated:  # If anonymous auth is allowed and it isn't already authenticated
             authenticated = True
-            self.context.logger.debug(f"Anonymous Authentication Success: config allows anonymous - Username: {username}")
-            mqttserverlog.info(f"Anonymous Authentication Success: config allows anonymous - Username: {username}")
+            self.context.logger.debug(
+                f"Anonymous Authentication Success: config allows anonymous - Username: {username}"
+            )
+            mqttserverlog.info(
+                f"Anonymous Authentication Success: config allows anonymous - Username: {username}"
+            )
 
         return authenticated
 
     def _read_password_file(self):
-        password_file = self.auth_config.get('password-file', None)
+        password_file = self.config.password_file
         if password_file:
             try:
                 with open(password_file) as f:
-                    self.context.logger.debug(f"Reading user database from {password_file}")
+                    self.context.logger.debug(
+                        f"Reading user database from {password_file}"
+                    )
                     for l in f:
                         line = l.strip()
-                        if not line.startswith('#'):    # Allow comments in files
+                        if not line.startswith('#'):  # Allow comments in files
                             (username, pwd_hash) = line.split(sep=":", maxsplit=3)
                             if username:
                                 self._users[username] = pwd_hash
-                                self.context.logger.debug(f"user: {username} - hash: {pwd_hash}")
-                self.context.logger.debug(f"{(len(self._users))} user(s) read from file {password_file}")
+                                self.context.logger.debug(
+                                    f"user: {username} - hash: {pwd_hash}"
+                                )
+                self.context.logger.debug(
+                    f"{(len(self._users))} user(s) read from file {password_file}"
+                )
             except FileNotFoundError:
-                self.context.logger.warning(f"Password file {password_file} not found")
+                self.context.logger.warning(
+                    f"Password file {password_file} not found"
+                )
 
-    async def on_broker_client_connected(self, client_id):
+    async def on_broker_client_connected(self, client_id, client_session=None):
 
         didsplit = str(client_id).split("@")
 
@@ -406,7 +423,7 @@ class BumperMQTTServer_Plugin:
                     bumper.mqtt_helperbot.command_responses.remove(msg)
 
 
-    async def on_broker_client_disconnected(self, client_id):
+    async def on_broker_client_disconnected(self, client_id, client_session=None):
 
         didsplit = str(client_id).split("@")
 
