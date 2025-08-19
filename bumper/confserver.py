@@ -162,7 +162,8 @@ class ConfServer:
 
     async def stop_server(self):
         try:
-            await self.runner.shutdown()
+            if self.runner:
+                await self.runner.shutdown()
 
         except Exception as e:
             confserverlog.exception("{}".format(e))
