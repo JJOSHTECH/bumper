@@ -8,9 +8,9 @@ Bumper runs multiple services to re-create what the central EcoVacs servers prov
 
 | Service     | Description                                      | Ports        | Source File     |
 | ----------- | ------------------------------------------------ | ------------ | --------------- |
-| Web Servers | Provide authentication and for MQTT bots command | 443 and 8007 | `confserver.py` |
+| Web Servers | Provide authentication and for MQTT bots command | 8007         | `confserver.py` |
 | XMPP Server | For bots that utilize this protocol              | 5223         | `xmppserver.py` |
-| MQTT Server | For bots that utilize this protocol              | 8883         | `mqttserver.py` |
+| MQTT Server | For bots that utilize this protocol              | 443 and 8883 | `mqttserver.py` |
 
 **App/Authentication**
 

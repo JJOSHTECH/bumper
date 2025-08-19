@@ -19,9 +19,9 @@ To run the image in docker some environment settings and port mappings are requi
 
 **Ports Required: (-p)**
 
-- 443 - `-p 443:443`
-- 8007 - `-p 8007:8007`
-- 8883 - `-p 8883:8883`
+- 443  - `-p 443:443` (MQTT over TLS)
+- 8007 - `-p 8007:8007` (web server)
+- 8883 - `-p 8883:8883` (optional MQTT compatibility)
 - 5223 - `-p 5223:5223`
 
 **Environment Settings: (-e)**
@@ -47,8 +47,4 @@ docker run -it -e "BUMPER_ANNOUNCE_IP=X.X.X.X" -p 443:443 -p 8007:8007 -p 8883:8
 
 A docker-compose example can be found in the ["example" folder](https://github.com/bmartin5692/bumper/tree/master/example/docker-compose).
 
-The docker-compose starts two services:
-- bumper itself
-- nginx proxy, which redirects MQTT traffic on port `443` to port `8883`
-
-The redirection is required as the app v2+ and robots with a newer firmware are connecting to the mqtt server on port 433.
+The docker-compose starts a single `bumper` service. MQTT now listens on port `443` directly, so an external proxy is no longer required for most setups.
