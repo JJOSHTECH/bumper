@@ -63,7 +63,6 @@ db = None
 mqtt_server = None
 mqtt_helperbot = None
 conf_server = None
-conf_server_2 = None
 xmpp_server = None
 
 # Plugins
@@ -186,10 +185,10 @@ else:
 logging.getLogger("asyncio").setLevel(logging.CRITICAL + 1)  # Ignore this logger
 
 
-mqtt_listen_port = 8883
-conf1_listen_port = 443
-conf2_listen_port = 8007
-xmpp_listen_port = 5223
+mqtt_listen_port = int(os.getenv("BUMPER_MQTT_PORT", "443"))
+mqtt_alt_port = int(os.getenv("BUMPER_MQTT_ALT_PORT", "8883"))
+conf_listen_port = int(os.getenv("BUMPER_CONF_PORT", "8007"))
+xmpp_listen_port = int(os.getenv("BUMPER_XMPP_PORT", "5223"))
 
 
 async def start():
@@ -226,14 +225,12 @@ async def start():
 
     bumperlog.info("Starting Bumper")
     global mqtt_server
-    mqtt_server = MQTTServer((bumper_listen, mqtt_listen_port))
+    mqtt_server = MQTTServer((bumper_listen, mqtt_listen_port), alt_port=mqtt_alt_port)
     global mqtt_helperbot
     helperbot_host = bumper_listen if bumper_listen != "0.0.0.0" else "127.0.0.1"
     mqtt_helperbot = MQTTHelperBot((helperbot_host, mqtt_listen_port))
     global conf_server
-    conf_server = ConfServer((bumper_listen, conf1_listen_port), usessl=True)
-    global conf_server_2
-    conf_server_2 = ConfServer((bumper_listen, conf2_listen_port), usessl=False)
+    conf_server = ConfServer((bumper_listen, conf_listen_port), usessl=False)
     global xmpp_server
     xmpp_server = XMPPServer((bumper_listen, xmpp_listen_port))
 
@@ -254,10 +251,16 @@ async def start():
     while not mqtt_helperbot.Client.session.transitions.state == "connected":
         await asyncio.sleep(0.1)
 
-    # Start web servers
+    # Start web server
     conf_server.confserver_app()
-    asyncio.create_task(conf_server.start_site(conf_server.app, address=bumper_listen, port=conf1_listen_port, usessl=True))
-    asyncio.create_task(conf_server.start_site(conf_server.app, address=bumper_listen, port=conf2_listen_port, usessl=False))
+    asyncio.create_task(
+        conf_server.start_site(
+            conf_server.app,
+            address=bumper_listen,
+            port=conf_listen_port,
+            usessl=False,
+        )
+    )
 
     # Start maintenance
     while not shutting_down:
@@ -278,10 +281,6 @@ async def shutdown(loop=None):
         with suppress(asyncio.CancelledError):
             await asyncio.wrap_future(
                 asyncio.run_coroutine_threadsafe(conf_server.stop_server(), loop)
-            )
-        with suppress(asyncio.CancelledError):
-            await asyncio.wrap_future(
-                asyncio.run_coroutine_threadsafe(conf_server_2.stop_server(), loop)
             )
         if mqtt_server and mqtt_server.broker:
             if mqtt_server.broker.transitions.state == "started":

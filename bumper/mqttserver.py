@@ -176,9 +176,10 @@ class MQTTServer:
             #asyncio.create_task(bumper.shutdown())
             pass
 
-    def __init__(self, address, **kwargs):
+    def __init__(self, address, *, alt_port=None, **kwargs):
         try:
             self.address = address
+            self.alt_port = alt_port
 
             # Default config opts
             passwd_file = os.path.join(
@@ -229,6 +230,14 @@ class MQTTServer:
                     },
                 },
             }
+
+            if self.alt_port and self.alt_port != address[1]:
+                self.default_config["listeners"]["tls2"] = {
+                    "bind": "{}:{}".format(address[0], self.alt_port),
+                    "ssl": True,
+                    "certfile": bumper.server_cert,
+                    "keyfile": bumper.server_key,
+                }
 
             try:
                 loop = asyncio.get_running_loop()
