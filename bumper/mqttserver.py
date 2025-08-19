@@ -39,10 +39,19 @@ class MQTTHelperBot:
                     client_id=self.client_id, config={"check_hostname": False, "reconnect_retries": 20}
                 )
 
-            await self.Client.connect(
-                "mqtts://{}:{}/".format(self.address[0], self.address[1]),
-                cafile=bumper.ca_cert,
-            )
+            username = os.getenv("BUMPER_MQTT_USERNAME")
+            password = os.getenv("BUMPER_MQTT_PASSWORD")
+
+            connect_kwargs = {"cafile": bumper.ca_cert}
+
+            if username and password:
+                uri = "mqtts://{}:{}@{}:{}/".format(
+                    username, password, self.address[0], self.address[1]
+                )
+            else:
+                uri = "mqtts://{}:{}/".format(self.address[0], self.address[1])
+
+            await self.Client.connect(uri, **connect_kwargs)
             await self.Client.subscribe(
                 [
                     ("iot/p2p/+/+/+/+/helperbot/bumper/helperbot/+/+/+", QOS_0),
@@ -173,16 +182,29 @@ class MQTTServer:
             # Default config opts
             passwd_file = os.path.join(
                 os.path.join(bumper.data_dir, "passwd")
-            ) # For file auth, set user:hash in passwd file see (https://amqtt.readthedocs.io/en/latest/references/amqtt.html#configuration-example)
+            )  # For file auth, set user:hash in passwd file see (https://amqtt.readthedocs.io/en/latest/references/amqtt.html#configuration-example)
 
             allow_anon = False
 
             for key, value in kwargs.items():
-                if key == "password_file":            
+                if key == "password_file":
                     passwd_file = kwargs["password_file"]
-                
+
                 elif key == "allow_anonymous":
-                    allow_anon = kwargs["allow_anonymous"] # Set to True to allow anonymous authentication
+                    allow_anon = kwargs["allow_anonymous"]  # Set to True to allow anonymous authentication
+
+            if not os.path.exists(passwd_file):
+                allow_anon = True
+            else:
+                try:
+                    with open(passwd_file) as f:
+                        has_entry = any(
+                            line.strip() and not line.strip().startswith("#") for line in f
+                        )
+                    if not has_entry:
+                        allow_anon = True
+                except OSError:
+                    allow_anon = True
 
             # The below adds a plugin to the amqtt.broker.plugins without having to futz with setup.py
             distribution = pkg_resources.Distribution("amqtt.broker.plugins")
