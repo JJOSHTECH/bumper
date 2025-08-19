@@ -275,14 +275,15 @@ async def shutdown():
 
         await conf_server.stop_server()
         await conf_server_2.stop_server()
-        if mqtt_server.broker.transitions.state == "started":
-            await mqtt_server.broker.shutdown()
-        elif mqtt_server.broker.transitions.state == "starting":
-            while mqtt_server.broker.transitions.state == "starting":
-                await asyncio.sleep(0.1)
+        if mqtt_server and mqtt_server.broker:
             if mqtt_server.broker.transitions.state == "started":
                 await mqtt_server.broker.shutdown()
-                await mqtt_helperbot.Client.disconnect()
+            elif mqtt_server.broker.transitions.state == "starting":
+                while mqtt_server.broker.transitions.state == "starting":
+                    await asyncio.sleep(0.1)
+                if mqtt_server.broker.transitions.state == "started":
+                    await mqtt_server.broker.shutdown()
+                    await mqtt_helperbot.Client.disconnect()
         if xmpp_server.server:
             if xmpp_server.server._serving:
                 xmpp_server.server.close()
