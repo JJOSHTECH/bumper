@@ -488,9 +488,10 @@ class XMPPAsyncClient:
                 transport = self.transport
                 protocol = self.transport.get_protocol()
 
-                ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
                 ssl_ctx.load_cert_chain(bumper.server_cert, bumper.server_key)
                 ssl_ctx.load_verify_locations(cafile=bumper.ca_cert)
+                ssl_ctx.verify_mode = ssl.CERT_OPTIONAL
 
                 new_transport = await loop.start_tls(
                     transport, protocol, ssl_ctx, server_side=True
