@@ -108,8 +108,9 @@ class ConfServer:
         self.runners.append(runner)
         await runner.setup()
         if usessl:
-            ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+            ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
             ssl_ctx.load_cert_chain(bumper.server_cert, bumper.server_key)
+            ssl_ctx.verify_mode = ssl.CERT_NONE
             site = web.TCPSite(
                 runner,
                 host=address,
@@ -133,8 +134,9 @@ class ConfServer:
             await self.runner.setup()
 
             if self.usessl:
-                ssl_ctx = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+                ssl_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
                 ssl_ctx.load_cert_chain(bumper.server_cert, bumper.server_key)
+                ssl_ctx.verify_mode = ssl.CERT_NONE
                 self.site = web.TCPSite(
                     self.runner,
                     host=self.address[0],
